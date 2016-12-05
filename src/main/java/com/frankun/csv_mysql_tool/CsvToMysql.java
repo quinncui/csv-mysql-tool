@@ -26,9 +26,8 @@ public class CsvToMysql {
 		String url = propertiesLoader.getProperty("jdbc.url");
 		String username = propertiesLoader.getProperty("jdbc.username");
 		String password = propertiesLoader.getProperty("jdbc.password");
-		String userTable = propertiesLoader.getProperty("jdbc.logTable");
+		String logTable = propertiesLoader.getProperty("jdbc.logTable");
 		String infoTable = propertiesLoader.getProperty("jdbc.infoTable");
-		String roleTable = propertiesLoader.getProperty("jdbc.roleTable");
 
         Connection con = null;
         Statement st = null;
@@ -51,9 +50,9 @@ public class CsvToMysql {
 			while ((nextLine = reader.readNext()) != null) {
 
 				int num;
-				boolean valid = false; //数据库中是否不存在该数据
-				if (StringUtils.isNotBlank(nextLine[5])){
-					query = "SELECT COUNT(0) FROM " + userTable + " WHERE login_name = '" + nextLine[4] + "'";
+				boolean valid = false; //数据库中是否不存在该邮箱
+				if (StringUtils.isNotBlank(nextLine[4])){
+					query = "SELECT COUNT(0) FROM " + logTable + " WHERE logname = '" + nextLine[4] + "'";
 					rs = st.executeQuery(query);
 					while (rs.next()){
 						num = rs.getInt(1);
@@ -64,38 +63,26 @@ public class CsvToMysql {
 				}
 
 				//手机号长度为11，邮箱只有一个@符号，数据库中不存在该邮箱
-				if (nextLine[4].length() == 11 && haveOnlyOneAt(nextLine[5]) && valid){
+				if (nextLine[3].length() == 11 && haveOnlyOneAt(nextLine[4]) && valid){
 					Date now = new Date();
 					String createTime = sdf.format(now);
 					char ch = nextLine[2].charAt(0);
-					Integer gender = ch == '男' ? 1 : 2;
+					Integer gender = ch == '男' ? 1 : 0;
 					count++;
 
 					//存入用户账号密码登录表
 					values = "('"
-							+ id + "','"
-							+ userId + "','"
+							+ nextLine[0] + "','"
 							+ nextLine[4] + "','"
-							+ CoderUtils.entryptPassword(nextLine[5], salt) + "','"
-							+ salt + "','"
-							+ createTime + "','"
-							+ 1 + "','"
-							+ 0 + "','"
-							+ 0 + "','"
-							+ 0 + "')";
+							+ nextLine[3] + "','"
+							+ createTime + "')";
 
 					if (count > 0) {
-						query  = "INSERT INTO  `" + userTable + "` ("
-								+ "`id`,"
+						query  = "INSERT INTO  `" + logTable + "` ("
 								+ "`user_id`,"
-								+ "`login_name`,"
+								+ "`logname`,"
 								+ "`password`,"
-								+ "`salt`,"
-								+ "`create_time`,"
-								+ "`user_type`,"
-								+ "`is_lock`,"
-								+ "`is_enable`,"
-								+ "`archived`)"
+								+ "`create_time`)"
 								+"VALUES " + values + ";";
 
 						st.executeUpdate(query);
@@ -105,58 +92,21 @@ public class CsvToMysql {
 
 					//存入用户信息表
 					values = "('"
-							+ userId + "','"
-							+ nextLine[4] + "','"
+							+ nextLine[0] + "','"
 							+ nextLine[1] + "','"
 							+ gender + "','"
-							+ createTime + "','"
-							+ 2 + "','"
-							+ 2 + "','"
-							+ nextLine[5] + "','"
-							+ 1 + "','"
-							+ nextLine[4] + "','"
-							+ 1 + "')";
+							+ createTime + "')";
 
 					if (count > 0) {
 						query  = "INSERT INTO  `" + infoTable + "` ("
 								+ "`user_id`,"
-								+ "`login_name`,"
-								+ "`nickname`,"
+								+ "`username`,"
 								+ "`gender`,"
-								+ "`regTime`,"
-								+ "`regType`,"
-								+ "`regClientType`,"
-								+ "`authEmail`,"
-								+ "`authEmailState`,"
-								+ "`authPhone`,"
-								+ "`authPhoneState`)"
+								+ "`create_time`)"
 								+"VALUES " + values + ";";
 
 						st.executeUpdate(query);
 						totalcount++;
-					}
-
-					//存入用户权限表
-					for (int i = 1; i < 4; i++){
-						values = "('"
-								+ GuidGenerator.generate() + "','"
-								+ i + "','"
-								+ userId + "','"
-								+ createTime + "','"
-								+ 0 + "')";
-
-						if (count > 0) {
-							query  = "INSERT INTO  `" + roleTable + "` ("
-									+ "`id`,"
-									+ "`role_id`,"
-									+ "`user_id`,"
-									+ "`create_time`,"
-									+ "`archived`)"
-									+"VALUES " + values + ";";
-
-							st.executeUpdate(query);
-							totalcount++;
-						}
 					}
 				}
 			}
